@@ -1,5 +1,4 @@
 # Real-CUGAN_CreateMovieHelper
-
 Simply automation tool for Real-CUGAN.
 
 # [どんなツール？]
