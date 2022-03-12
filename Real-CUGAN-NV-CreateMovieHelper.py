@@ -114,7 +114,7 @@ def DialogForModel():
         print(' 4) ' +  denoise3x.name)
         print('+＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝+')
 
-        print('Which are you want to use remove noise model? Select one from upper menu.')
+        print('What do you want to use remove noise model? Select one from upper menu.')
         ModelNameNum = input('どのデノイズモデルを使用しますか？上記より選択してください。')
 
         Print_Three_Reader()
@@ -141,7 +141,7 @@ def DialogForModel():
         print('☆Starting with Config mode instead of Dialog one.')
         print('☆対話を省略し、configファイルから読み取ります。')
         config = configparser.ConfigParser(comment_prefixes=';', allow_no_value=True)
-        config.read(config_path, encoding='UTF-8')
+        config.read(config_path, encoding='SHIFTJIS')
         ModelNameNum = config.get('DEFAULT', 'UseModel')
         ScaleSize = config.get('DEFAULT', 'ScaleSize')
 
@@ -178,7 +178,7 @@ def Import_config(file):
             ';				  ; もし数字が大きいと感じた場合は、下げてください。':'',
             'Extension': 'png',
             '; Default = png ; png,jpg,webp':'',
-            'ChromaSubsampling': 'yuv420p',
+            'Chroma_Subsampling': 'yuv420p',
             '; Default = yuv420p ; yuv420p, yuv444p..(or more... plz read FFmpeg official site.)':'',
             '; --- !! These settings enables when DialogForUseModel is False !! ---':'',
             '; --- !! これらの設定はDialogForUseModelがFalseの場合に有効化されます !! ---':'',
@@ -208,11 +208,11 @@ def Import_config(file):
     # ↓pyの場合は、こちらを使用
     #path = os.path.join(os.path.dirname(__file__), 'config.ini')
     #　こちらは相対パスにて設定、config.iniはexe/pyファイルの直下
-    config.read(config_path, encoding='UTF-8')
+    config.read(config_path, encoding='SHIFTJIS')
     Bitrate = config.get('DEFAULT', 'Bitrate')
     Codec = config.get('DEFAULT', 'Codec')
     Extention = config.get('DEFAULT', 'Extension')
-    ChromaSubsampling = config.get('DEFAULT', 'ChromaSubsampling')
+    ChromaSubsampling = config.get('DEFAULT', 'Chroma_Subsampling')
     DialogForUseModel = config.get('DEFAULT', 'DialogForUseModel')
     SyncGapMode = config.get('DEFAULT', 'SyncGapMode')
     TTA_Mode = config.get('DEFAULT', 'TTA-Mode')
