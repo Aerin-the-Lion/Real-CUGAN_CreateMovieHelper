@@ -8,6 +8,7 @@
 '''
 
 # from signal import pause
+from operator import is_
 from re import L
 import subprocess
 from subprocess import Popen, PIPE
@@ -73,7 +74,7 @@ def Print_Three_Reader():
     print('.')
     print('.')
 
-def DialogForModel():
+def DialogForModel(DialogForUseModel : bool):
     global DenoiseModel,ScaleSize
     DenoiseModel = ''
     ScaleSize =  0
@@ -102,7 +103,7 @@ def DialogForModel():
         else:
             return
                 
-    if DialogForUseModel == str(True):
+    if DialogForUseModel == True:
         print('☆Starting with dialog mode...')
         print('☆対話形式による処理を開始します。')
         print('+＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝+')
@@ -161,7 +162,7 @@ def Make_file(file):
         os.mkdir(file)
 
 def Import_config(file):
-    global config,Bitrate,Codec,Extention,DialogForUseModel,ChromaSubsampling,SyncGapMode,TTA_Mode
+    global config,Bitrate,Codec,Extention,DialogForUseModel,ChromaSubsampling,SyncGapMode,TTA_Mode,CombineOnlyMode
     #  --- コンフィグ読み取り ---
     config = configparser.ConfigParser(comment_prefixes=';', allow_no_value=True)
     if not os.path.exists(file):
@@ -172,14 +173,12 @@ def Import_config(file):
             '; Default = True ; if you use config setting then switch to False.':'',
             ';				  ; もしconfig.iniから読み取る場合は、Falseに切り替えてください。':'',
             'Codec': 'hevc_nvenc',
-            '; Default = h264_nvenc, hevc_nvenc, libx264 ...etc':'',
+            '; Default = hevc_nvenc ; h264_nvenc, hevc_nvenc, libx264 ...etc':'',
             'Bitrate': '200M',
-            '; Default = 200M ; if you feels huge the value, decrease it.':'',
-            ';				  ; もし数字が大きいと感じた場合は、下げてください。':'',
+            '; Default = 200M ; This is max bitrate.  ; if you feels huge the value, decrease it.':'',
+            ';				  ; max bitrateのことです。; もし数字が大きいと感じた場合は、下げてください。':'',
             'Extension': 'png',
             '; Default = png ; png,jpg,webp':'',
-            'Chroma_Subsampling': 'yuv420p',
-            '; Default = yuv420p ; yuv420p, yuv444p..(or more... plz read FFmpeg official site.)':'',
             '; --- !! These settings enables when DialogForUseModel is False !! ---':'',
             '; --- !! これらの設定はDialogForUseModelがFalseの場合に有効化されます !! ---':'',
             'UseModel': '1',
@@ -192,12 +191,21 @@ def Import_config(file):
             'ScaleSize': '2',
             '; Default = 2 ; Switch ScaleSize between 2 and 4 with integer.':'',
             '				  ; 2から4の整数で倍数を切り替えてください。':'',
+            '; --- !! --------------------------------------------------------- !! ---':'',
+            'Chroma_Subsampling': 'yuv420p',
+            '; Default = yuv420p ; yuv420p, yuv444p..(or more... plz read FFmpeg official site.)':'',
+            ';                   ;                   (更に知りたい場合は、FFmpegの公式サイトを参照してください。)':'',
             'SyncGapMode': '3',
             '; Default = 3 ; Switch ScaleSize between 0 and 3 with integer.':'',
             '				  ; 0から3の整数で倍数を切り替えてください。':'',
             'TTA-Mode': 'False',
             '; Default = False ; Switch if you want to use tta':'',
             '				  ; True or False':'',
+            'CombineOnly-Mode': 'False',
+            '; Default = False ; Switch to True the setting when you got error or crashed combining pictures phase.':'',
+            '				   ; This mode will performs only combining them with created pictures in output_frames.':'',
+            '				   ; もしエラーが発生したり、連番を連結する際にクラッシュしてしまったら、この設定をTrueにしてください。':'',
+            '				   ; このモードはoutput_framesに入っている連番を使用し、連結工程のみ行います。':'',
         }
         with open(file, 'w') as file:
             config.write(file)
@@ -213,14 +221,15 @@ def Import_config(file):
     Codec = config.get('DEFAULT', 'Codec')
     Extention = config.get('DEFAULT', 'Extension')
     ChromaSubsampling = config.get('DEFAULT', 'Chroma_Subsampling')
-    DialogForUseModel = config.get('DEFAULT', 'DialogForUseModel')
+    DialogForUseModel = config.getboolean('DEFAULT', 'DialogForUseModel')
     SyncGapMode = config.get('DEFAULT', 'SyncGapMode')
-    TTA_Mode = config.get('DEFAULT', 'TTA-Mode')
+    TTA_Mode = config.getboolean('DEFAULT', 'TTA-Mode')
+    CombineOnlyMode = config.getboolean('DEFAULT', 'CombineOnly-Mode')
 
-    def is_TTA_mode(Config_TTA_Mode):
-        if Config_TTA_Mode == "True":
+    def is_TTA_mode(Config_TTA_Mode : bool):
+        if Config_TTA_Mode == True:
             TTA_Mode = "-x"
-        elif Config_TTA_Mode == "False":
+        elif Config_TTA_Mode == False:
             TTA_Mode = ""
         else:
             print('Config.TTA_Mode : Error : please set True or False.')
@@ -229,7 +238,6 @@ def Import_config(file):
         return TTA_Mode
     TTA_Mode = is_TTA_mode(TTA_Mode)
     
-
 # フォルダーを作成
 def Make_Files():
     Make_file(input_f)
@@ -247,6 +255,8 @@ def Alert_RemainingOldCreated():
         print('・Nevertheless if you goes on, please press any key.')
         print('・前回の連番作成した連番画像があります。バグが起きる可能性があるため、取り除いてください。')
         print('・それでも行う場合はなにかキーを押すと作業に入ります。')
+        print('＋Notice : If you got error when combine pictures, I strongly recommend turn to True CombineOnly-Mode in Config.ini once.＋')
+        print('＋通知 : もし画像連結で不具合が発生し、動画が作れなかったのであれば、一度Config.iniでCombineOnly-ModeをTrueにし、実行することを強くお勧めします。＋')
         input('＋＝＝＝＝＝＝＝＝!Alert!＝＝＝＝＝＝＝＝＝＝＝＝!Alert!＝＝＝＝＝＝＝＋')
 
 # exeファイルを起動したあとのcmd画面にD&Dをしたファイルを読み取り
@@ -311,8 +321,8 @@ def SuperResolution_exe():
 
 def Combining_Picture():
     Normal = 'ffmpeg -framerate ' + fps + ' -i .\output_frames\%08d.png -i "' + basename + '" -map 0:v:0 -map 1:a:0 -strict -2 -vcodec ' + Codec + ' -acodec copy -b:v ' + Bitrate + ' -pix_fmt ' + ChromaSubsampling + ' -sws_flags spline+accurate_rnd+full_chroma_int -vf "colorspace=bt709:iall=bt601-6-625:fast=1" -color_range 1 -colorspace 1 -color_primaries 1 -color_trc 1 -r ' + fps + ' "'+ basename_without_ext +'_enhanced.mp4"'
-    No_Music = 'ffmpeg -framerate ' + fps + ' -i .\output_frames\%08d.png -i "' + basename + '"-vcodec ' + Codec + ' -b:v ' + Bitrate + ' -pix_fmt ' + ChromaSubsampling + ' -sws_flags spline+accurate_rnd+full_chroma_int -vf "colorspace=bt709:iall=bt601-6-625:fast=1" -color_range 1 -colorspace 1 -color_primaries 1 -color_trc 1 -r ' + fps + ' "'+ basename_without_ext +'_enhanced_nomusic.mp4"'
-    Music_MP3 = 'ffmpeg -framerate ' + fps + ' -i .\output_frames\%08d.png -i "' + basename + '"-vcodec ' + Codec + ' -ab 320k -acodec libmp3lame -b:v ' + Bitrate + ' -pix_fmt ' + ChromaSubsampling + ' -sws_flags spline+accurate_rnd+full_chroma_int -vf "colorspace=bt709:iall=bt601-6-625:fast=1" -color_range 1 -colorspace 1 -color_primaries 1 -color_trc 1 -r ' + fps + ' "'+ basename_without_ext +'_enhanced_nomusic.mp4"'
+    No_Music = 'ffmpeg -framerate ' + fps + ' -i .\output_frames\%08d.png -i "' + basename + '" -vcodec ' + Codec + ' -b:v ' + Bitrate + ' -pix_fmt ' + ChromaSubsampling + ' -sws_flags spline+accurate_rnd+full_chroma_int -vf "colorspace=bt709:iall=bt601-6-625:fast=1" -color_range 1 -colorspace 1 -color_primaries 1 -color_trc 1 -r ' + fps + ' "'+ basename_without_ext +'_enhanced_nomusic.mp4"'
+    Music_MP3 = 'ffmpeg -framerate ' + fps + ' -i .\output_frames\%08d.png -i "' + basename + '" -map 0:v:0 -map 1:a:0 -strict -2 -vcodec ' + Codec + ' -ab 320k -acodec libmp3lame -b:v ' + Bitrate + ' -pix_fmt ' + ChromaSubsampling + ' -sws_flags spline+accurate_rnd+full_chroma_int -vf "colorspace=bt709:iall=bt601-6-625:fast=1" -color_range 1 -colorspace 1 -color_primaries 1 -color_trc 1 -r ' + fps + ' "'+ basename_without_ext +'_enhanced_fixed.mp4"'
     print('＋＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＋')
     print('・Combining output pictures…')
     print('・連番の結合を実行します…')
@@ -388,8 +398,18 @@ def Delete_Files():
         print('Incorrect input and cancel delete files.')
         print('不正な値です。ファイルの削除を行いません。')
 
-def Main():
-    Import_config(config)
+def is_CombineMode(Config_CombineOnlyMode : bool) -> bool:
+    # 連番連結モードか否か。Configで読み取って最初の動作を変更。
+    if Config_CombineOnlyMode == True:
+        return True
+    elif Config_CombineOnlyMode == False:
+        return False
+    else:
+        print('Config.CombineOnly-Mode : Error : please set True or False.')
+        print('Config.CombineOnly-Mode : Setted Disable CombineOnly-Mode.')
+        return False
+
+def Normal_Mode():
     Make_Files()
     Alert_RemainingOldCreated()
     DialogForModel()
@@ -405,7 +425,30 @@ def Main():
     print('処理を終了しました。')
     input()
 
+def Combine_Only_Mode():
+    print('＋＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＋')
+    print('・Activated Combine Only Mode.')
+    print('・連番の連結のみを行います。')
+    print('＋＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＋')
+    Print_Three_Reader()
+    Filein()
+    Capture_fps(basename)
+    Combining_Picture()
+    Delete_Files()
+
+    print('Finished all process.')
+    print('処理を終了しました。')
+    input()
+
+def Main():
+    Import_config(config)
+    if is_CombineMode(CombineOnlyMode):
+        Combine_Only_Mode()
+    else:
+        Normal_Mode()
+
 Main()
+
 
 
 
