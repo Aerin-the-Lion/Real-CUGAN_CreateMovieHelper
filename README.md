@@ -8,7 +8,7 @@ Simply automation tool for Real-CUGAN.
 <br>・自前でffmpegのコマンドを打つCUI特有の面倒さ削減にも一役買うのではないかなと思います。
 
 【字幕解説動画】Real-CUGANを動画素材でも誰でも手軽に使えるようにしてみた【自動化ツール配布】(Real-CUGAN-NV-CreateMovieHelper)
-https://www.youtube.com/watch?v=Q7RjPQU0-X8
+https://youtu.be/Q7RjPQU0-X8
 
 # [必要なツール]
 <br>・FFmpeg(梱包済み)
